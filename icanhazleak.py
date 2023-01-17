@@ -10,6 +10,7 @@ import sys
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 
+
 FFCOOKIE = ""
 FFCSRF = ""
 
@@ -75,6 +76,7 @@ Usage:
 You must set up your FFCOOKIE and FFCSRF values at the beginning of this script.
 """)
         os._exit(1)
+        
     with open(str(sys.argv[1]), 'r') as f:
         emails = f.readlines()
 
