@@ -72,7 +72,7 @@ Usage:
         os._exit(1)
     elif FFCOOKIE == '' or FFCSRF == '':
         print("""
-You must set up your FFCOOKIE and FFCSRF values at the beginning of this script
+You must set up your FFCOOKIE and FFCSRF values at the beginning of this script.
 """)
         os._exit(1)
     with open(str(sys.argv[1]), 'r') as f:
