@@ -10,8 +10,8 @@ import sys
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 
-FFCSRF = "csrfhere"
 FFCOOKIE = "connect.sid=xxx; _ga=yyy; _gid=zzz; adUnit=5; _gat=1"
+FFCSRF = "csrfhere"
 
 
 def is_valid_email(email):
@@ -39,7 +39,7 @@ def check_at_ff(email):
     response = requests.post(url, headers=headers, data=data)
     if """class="bold">0</span>""" not in response.text:
         with open(str(sys.argv[2]), 'w') as f:
-            f.write(f"{email} appeared in a breach. Check {url}\n")
+            f.write(f"{email} appeared at {url}\n")
 
 
 def check_at_hs(email):
@@ -59,7 +59,7 @@ def check_at_hs(email):
     response = requests.post(url, headers=headers, data=encoder)
     if """BREACH DETECTED!""" in response.text:
         with open(str(sys.argv[2]), 'a') as f:
-            f.write(f"{email} appeared in a breach. Check {url}\n")
+            f.write(f"{email} appeared at {url}\n")
 
 
 if __name__ == "__main__":
