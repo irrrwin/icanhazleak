@@ -10,8 +10,8 @@ import sys
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 
-FFCOOKIE = "connect.sid=xxx; _ga=yyy; _gid=zzz; adUnit=5; _gat=1"
-FFCSRF = "csrfhere"
+FFCOOKIE = ""
+FFCSRF = ""
 
 
 def is_valid_email(email):
@@ -38,7 +38,7 @@ def check_at_ff(email):
     }
     response = requests.post(url, headers=headers, data=data)
     if """class="bold">0</span>""" not in response.text:
-        with open(str(sys.argv[2]), 'w') as f:
+        with open(str(sys.argv[2]), 'a') as f:
             f.write(f"{email} appeared at {url}\n")
 
 
@@ -70,7 +70,11 @@ Usage:
     - <IN_FILE> must be a newline separated list of email addresses
 """)
         os._exit(1)
-
+    elif FFCOOKIE == '' or FFCSRF == '':
+        print("""
+You must set up your FFCOOKIE and FFCSRF values at the beginning of this script
+""")
+        os._exit(1)
     with open(str(sys.argv[1]), 'r') as f:
         emails = f.readlines()
 
