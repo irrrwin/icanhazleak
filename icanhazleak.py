@@ -1,13 +1,19 @@
 #!/bin/python3
-# iterate thru emails and look for leaks via https://www.hotsheet.com/inoitsu/
-# and https://monitor.firefox.com/
+# Iterate thru emails and look for leaks via https://www.hotsheet.com/inoitsu/
+# and https://monitor.firefox.com/. Project available as is. There are no plans 
+# for maintenance or development. No warranty too. Will break if authors modify
+# the original html too much. Seriously.
 
+import concurrent.futures
 import hashlib
 import os
 import re
 import requests
 import sys
+from dateutil import parser
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+
+from bs4 import BeautifulSoup, Tag
 
 
 
@@ -21,6 +27,8 @@ def is_valid_email(email):
 
 
 def check_at_ff(email):
+    if not is_valid_email(email):
+        return
     url = "https://monitor.firefox.com/scan"
     headers = {
         "Host": "monitor.firefox.com",
@@ -38,12 +46,24 @@ def check_at_ff(email):
         "emailHash": emailHash
     }
     response = requests.post(url, headers=headers, data=data)
-    if """class="bold">0</span>""" not in response.text:
-        with open(str(sys.argv[2]), 'a') as f:
-            f.write(f"{email} appeared at {url}\n")
+    soup = BeautifulSoup(response.text, 'html.parser')
+    breach_indicator = soup.select_one('.headline.scan-results-headline span.bold').text
+    if breach_indicator != 0:
+        breaches = soup.select('.breach-info-wrapper.flx.flx-col div.flx.flx-col')
+        for breach in breaches:
+            contents = breach.contents
+            if "Passwords" in contents[-2].text:
+                email = email.ljust(30)
+                title = contents[1].text.ljust(30)
+                date = parser.parse(contents[5].text)
+                date = date.strftime("%Y-%m-%d")
+                with open(str(sys.argv[2]), 'a') as f:
+                    f.write(f"| {email} | {title} | {date} |\n")
 
 
 def check_at_hs(email):
+    if not is_valid_email(email):
+        return
     url = "https://www.hotsheet.com/inoitsu/"
     headers = {
         "Host": "www.hotsheet.com",
@@ -58,9 +78,24 @@ def check_at_hs(email):
     })
     headers["Content-Type"] = encoder.content_type
     response = requests.post(url, headers=headers, data=encoder)
-    if """BREACH DETECTED!""" in response.text:
-        with open(str(sys.argv[2]), 'a') as f:
-            f.write(f"{email} appeared at {url}\n")
+    breach_indicator = "BREACH DETECTED!"
+    if breach_indicator in response.text:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        breaches = soup.select_one('div#BreachDtl.hidden-content.phide')
+        new_elements = []
+        for child in breaches.contents[1:]:
+            if child.name is None and child.text == chr(160):
+                new_elements.append(Tag(name='breach'))
+            else:
+                new_elements[-1].append(child)
+        for child in new_elements[:-1]:
+            contents = child.contents
+            if "Passwords" in contents[-2].text:
+                email = email.ljust(30)
+                title = contents[1].text.ljust(30)
+                date = contents[3][-10:]
+                with open(str(sys.argv[2]), 'a') as f:
+                    f.write(f"| {email} | {title} | {date} |\n")
 
 
 if __name__ == "__main__":
@@ -76,12 +111,16 @@ Usage:
 You must set up your FFCOOKIE and FFCSRF values at the beginning of this script.
 """)
         os._exit(1)
-        
+
     with open(str(sys.argv[1]), 'r') as f:
         emails = f.readlines()
+    with open(str(sys.argv[2]), 'w') as f:
+        f.write(f"""### Email addresses found in public leaks:
+| {'Email address'.ljust(30)} | {'Leak Title'.ljust(30)} | {'Date'.ljust(10)} |
+| {'-'*30} | {'-'*30} | {'-'*10} |
+""")
 
-    for email in emails:
-        email = email.strip()
-        if is_valid_email(email):
-            check_at_ff(email=email)
-            check_at_hs(email=email)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = [executor.submit(check_at_ff, email.strip()) for email in emails]
+        results += [executor.submit(check_at_hs, email.strip()) for email in emails]
+        concurrent.futures.wait(results)
